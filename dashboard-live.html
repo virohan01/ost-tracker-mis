@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales MIS — OST Tracker (Live)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,-apple-system,sans-serif;background:#F0F2F7;color:#111827;font-size:13px}
+
+/* ── LOADING SCREEN ── */
+#loading{position:fixed;inset:0;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:16px}
+.spinner{width:40px;height:40px;border:3px solid #E5E7EB;border-top-color:#2563EB;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading-msg{font-size:13px;color:#6B7280}
+#loading-sub{font-size:11px;color:#9CA3AF}
+
+/* ── ERROR SCREEN ── */
+#error-screen{display:none;position:fixed;inset:0;background:#FEF2F2;flex-direction:column;align-items:center;justify-content:center;z-index:998;gap:12px;padding:24px;text-align:center}
+#error-screen.show{display:flex}
+.err-icon{font-size:48px}
+.err-title{font-size:18px;font-weight:700;color:#DC2626}
+.err-msg{font-size:13px;color:#991B1B;max-width:500px;line-height:1.6}
+.err-steps{background:#fff;border:1px solid #FCA5A5;border-radius:12px;padding:16px 20px;max-width:500px;text-align:left;font-size:12px;color:#7F1D1D;line-height:2}
+.err-btn{background:#DC2626;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif}
+.err-btn:hover{background:#B91C1C}
+
+/* ── NAV ── */
+.nav{background:#fff;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;height:52px;padding:0 20px;position:sticky;top:0;z-index:100;gap:4px}
+.nbrand{display:flex;align-items:center;gap:8px;margin-right:12px;flex-shrink:0}
+.nlogo{width:28px;height:28px;border-radius:6px;background:#2563EB;color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center}
+.ntitle{font-weight:700;font-size:14px}
+.ntabs{display:flex;gap:2px;overflow-x:auto;flex:1}
+.nt{padding:5px 13px;border-radius:6px;font-size:12px;font-weight:500;color:#6B7280;cursor:pointer;border:none;background:none;white-space:nowrap;font-family:inherit}
+.nt:hover{background:#F0F2F7;color:#111827}
+.nt.active{background:#EFF6FF;color:#2563EB}
+.nlive{background:#ECFDF5;color:#059669;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;margin-left:auto;flex-shrink:0;display:flex;align-items:center;gap:4px}
+.nlive::before{content:'';width:6px;height:6px;border-radius:50%;background:#059669;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.ntime{font-size:10px;color:#9CA3AF;flex-shrink:0;white-space:nowrap;margin-left:8px}
+.nrefresh{background:none;border:1px solid #E5E7EB;border-radius:6px;padding:4px 8px;font-size:10px;font-weight:600;color:#6B7280;cursor:pointer;font-family:inherit;flex-shrink:0;margin-left:6px}
+.nrefresh:hover{background:#F0F2F7;color:#2563EB;border-color:#2563EB}
+
+/* ── PAGES ── */
+.page{display:none;padding:20px;max-width:1400px;margin:0 auto}.page.active{display:block}
+.pg-hd{margin-bottom:14px}.pg-title{font-size:18px;font-weight:700}.pg-sub{font-size:11px;color:#9CA3AF;margin-top:2px}
+
+/* ── KPI GRID ── */
+.k6{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
+.kpi{background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:14px 15px;position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0}
+.kpi.cb::before{background:#2563EB}.kpi.cg::before{background:#059669}.kpi.cr::before{background:#DC2626}
+.kpi.ca::before{background:#D97706}.kpi.cp::before{background:#7C3AED}.kpi.ct::before{background:#0D9488}
+.kl{font-size:10px;color:#9CA3AF;margin-bottom:4px;font-weight:500}
+.kv{font-size:22px;font-weight:700;line-height:1;margin-bottom:3px}
+.ks{font-size:10px;color:#9CA3AF}
+.kpi.cb .kv{color:#2563EB}.kpi.cg .kv{color:#059669}.kpi.cr .kv{color:#DC2626}
+.kpi.ca .kv{color:#D97706}.kpi.cp .kv{color:#7C3AED}.kpi.ct .kv{color:#0D9488}
+
+/* ── CARDS ── */
+.card{background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px}
+.ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:6px;flex-wrap:wrap}
+.ct{font-size:13px;font-weight:600}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:14px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+
+/* ── TABLE ── */
+.tscroll{overflow-x:auto}
+.dt{width:100%;border-collapse:collapse}
+.dt th{text-align:left;font-size:10px;font-weight:600;color:#9CA3AF;padding:6px 8px;border-bottom:1px solid #E5E7EB;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.dt td{padding:7px 8px;border-bottom:1px solid #F9FAFB;font-size:12px;color:#374151;vertical-align:middle}
+.dt tr:last-child td{border-bottom:none}
+.dt tr.cr{cursor:pointer}.dt tr.cr:hover td{background:#F9FAFB}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.drill-row td{padding:0;background:#F8FAFF}
+.drill-box{background:#EFF6FF;border:1px solid #BFDBFE;margin:4px;border-radius:8px;padding:14px}
+.dk4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.dk{background:#fff;border-radius:8px;padding:10px 12px;border:1px solid #BFDBFE}
+.dkv{font-size:18px;font-weight:700;color:#2563EB}.dkl{font-size:10px;color:#9CA3AF;margin-top:2px}
+.dg3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.dsec{background:#fff;border-radius:8px;padding:12px;border:1px solid #BFDBFE}
+.dsect{font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.srow{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #F3F4F6;font-size:12px}
+.srow:last-child{border-bottom:none}.slbl{color:#6B7280}.sval{font-weight:600;color:#111827}
+
+/* ── MISC UI ── */
+.pill{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px}
+.pr{background:#FEF2F2;color:#DC2626}.pg{background:#ECFDF5;color:#059669}.pb{background:#EFF6FF;color:#2563EB}
+.sbox{padding:7px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:12px;font-family:inherit;color:#111827;background:#fff;outline:none}
+.sbox:focus{border-color:#2563EB}
+.bt{display:inline-block;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;background:#F3F4F6;color:#6B7280;text-transform:uppercase}
+.src-bar{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #F9FAFB;cursor:pointer}
+.src-bar:last-child{border-bottom:none}.src-lbl{font-size:11px;color:#374151;min-width:200px}
+.src-track{flex:1;height:5px;background:#E5E7EB;border-radius:3px}
+.src-fill{height:5px;border-radius:3px;background:#2563EB}
+.src-cnt{font-size:11px;font-weight:600;color:#6B7280;min-width:26px;text-align:right}
+.mb{display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #F9FAFB;font-size:11px}
+.mb:last-child{border-bottom:none}.mbl{flex:1;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mbt{width:60px;height:4px;background:#E5E7EB;border-radius:2px;flex-shrink:0}
+.mbf{height:4px;border-radius:2px}.mbv{width:28px;text-align:right;color:#6B7280;font-weight:600;font-size:11px}
+.hm{width:100%;border-collapse:separate;border-spacing:3px}
+.hm th{font-size:10px;font-weight:600;color:#9CA3AF;padding:3px 6px;text-align:center;text-transform:uppercase}
+.hm th:first-child{text-align:left}
+.hm td{padding:6px 8px;text-align:center;border-radius:4px;font-size:12px;font-weight:600}
+.hm td:first-child{text-align:left;background:none!important;color:#374151;padding-left:0}
+.rca-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.ri{border-radius:8px;padding:12px;border-left:3px solid}
+.ri.crit{background:#FEF2F2;border-left-color:#DC2626}.ri.warn{background:#FFFBEB;border-left-color:#D97706}.ri.good{background:#ECFDF5;border-left-color:#059669}
+.rit{font-size:12px;font-weight:600;margin-bottom:3px}
+.ri.crit .rit{color:#B91C1C}.ri.warn .rit{color:#92400E}.ri.good .rit{color:#065F46}
+.rib{font-size:11px;line-height:1.5}
+.ri.crit .rib{color:#991B1B}.ri.warn .rib{color:#78350F}.ri.good .rib{color:#064E3B}
+.team-card{background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:14px;cursor:pointer}
+.team-card:hover{border-color:#2563EB;box-shadow:0 0 0 3px #EFF6FF}
+.footer{text-align:center;padding:16px;font-size:10px;color:#9CA3AF;border-top:1px solid #E5E7EB;background:#fff;margin-top:8px}
+@media(max-width:900px){.k6{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:1fr}.rca-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="spinner"></div>
+  <div id="loading-msg">Connecting to Google Sheets…</div>
+  <div id="loading-sub">Fetching live data from your sheet</div>
+</div>
+
+<!-- ERROR SCREEN -->
+<div id="error-screen">
+  <div class="err-icon">⚠️</div>
+  <div class="err-title">Could not load data</div>
+  <div class="err-msg" id="err-detail">Unable to fetch from the Apps Script URL.</div>
+  <div class="err-steps">
+    <strong>Checklist:</strong><br>
+    1. Open <code>dashboard.html</code> in a text editor<br>
+    2. Find <code>var SCRIPT_URL =</code> near line 1<br>
+    3. Paste your deployed Apps Script URL there<br>
+    4. In Apps Script → Deploy → Manage deployments<br>
+    &nbsp;&nbsp;&nbsp;→ Access: <strong>Anyone</strong> (not "Anyone with Google account")<br>
+    5. Save and refresh this page
+  </div>
+  <button class="err-btn" onclick="location.reload()">↺ Retry</button>
+</div>
+
+<!-- NAV -->
+<nav class="nav" id="main-nav" style="display:none">
+  <div class="nbrand"><div class="nlogo">MIS</div><span class="ntitle">OST Tracker</span></div>
+  <div class="ntabs">
+    <button class="nt active" onclick="gp('overview',this)">Overview</button>
+    <button class="nt" onclick="gp('ad',this)">AD Deep-Dive</button>
+    <button class="nt" onclick="gp('cm',this)">CM Deep-Dive</button>
+    <button class="nt" onclick="gp('team',this)">Teams</button>
+    <button class="nt" onclick="gp('campus',this)">Campus</button>
+    <button class="nt" onclick="gp('source',this)">Sources</button>
+    <button class="nt" onclick="gp('financial',this)">Financials</button>
+  </div>
+  <span class="nlive">LIVE</span>
+  <span class="ntime" id="ntime">—</span>
+  <button class="nrefresh" onclick="refreshData()">↺ Refresh</button>
+</nav>
+
+<div class="page active" id="p-overview"><div id="content-overview"></div></div>
+<div class="page" id="p-ad"><div id="content-ad"></div></div>
+<div class="page" id="p-cm"><div id="content-cm"></div></div>
+<div class="page" id="p-team"><div id="content-team"></div></div>
+<div class="page" id="p-campus"><div id="content-campus"></div></div>
+<div class="page" id="p-source"><div id="content-source"></div></div>
+<div class="page" id="p-financial"><div id="content-financial"></div></div>
+<footer class="footer" id="footer" style="display:none"></footer>
+
+<script>
+// ╔══════════════════════════════════════════════════════════╗
+//  ★  STEP 1 — PASTE YOUR APPS SCRIPT URL HERE  ★
+//  After deploying Code.gs as a Web App, copy the URL and
+//  replace the placeholder below. Keep the quotes.
+// ╚══════════════════════════════════════════════════════════╝
+var SCRIPT_URL = "https://script.google.com/a/macros/virohan.org/s/AKfycby_4E2AKGTwJU4HZywlt80sVi4hK9WoYkB_SQQ-q9fJ6rfjkaQGjjbLBwElFNE_Kiaw/exec";
+// Example:
+// var SCRIPT_URL = "https://script.google.com/macros/s/AKfycb.../exec";
+
+var D = null;
+var _built = {};
+var _charts = {};
+
+// ── FETCH & INIT ─────────────────────────────────────────────
+function loadData() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('loading-msg').textContent = 'Connecting to Google Sheets…';
+
+  if (!SCRIPT_URL || SCRIPT_URL === "YOUR_APPS_SCRIPT_WEB_APP_URL_HERE") {
+    showError("SCRIPT_URL is not set. Open dashboard.html in a text editor and paste your Apps Script URL.");
+    return;
+  }
+
+  fetch(SCRIPT_URL + (SCRIPT_URL.includes('?') ? '&' : '?') + '_t=' + Date.now())
+    .then(function(res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + res.statusText);
+      document.getElementById('loading-msg').textContent = 'Processing data…';
+      return res.json();
+    })
+    .then(function(data) {
+      if (data.error) throw new Error(data.error);
+      D = data;
+      initDashboard();
+    })
+    .catch(function(err) {
+      showError(err.message || 'Unknown fetch error. See checklist below.');
+    });
+}
+
+function showError(msg) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('err-detail').textContent = msg;
+  document.getElementById('error-screen').classList.add('show');
+}
+
+function initDashboard() {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('error-screen').classList.remove('show');
+  document.getElementById('main-nav').style.display = 'flex';
+  document.getElementById('footer').style.display = 'block';
+  document.getElementById('ntime').textContent = D.lastUpdated || new Date().toLocaleString('en-IN');
+  document.getElementById('footer').textContent = 'OST Tracker MIS · Live from Google Sheets · ' + (D.lastUpdated || '') + ' · ' + (D.totalRows || 0) + ' records';
+
+  // Destroy old charts before rebuild
+  Object.keys(_charts).forEach(function(id) {
+    try { _charts[id].destroy(); } catch(e) {}
+  });
+  _charts = {};
+  _built = {};
+
+  buildOverview();
+  _built['overview'] = true;
+}
+
+function refreshData() {
+  // Reset all built flags so pages rebuild with fresh data
+  _built = {};
+  document.getElementById('ntime').textContent = 'Refreshing…';
+  loadData();
+}
+
+// ── PAGE NAV ─────────────────────────────────────────────────
+function gp(id, btn) {
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.nt').forEach(function(b) { b.classList.remove('active'); });
+  document.getElementById('p-' + id).classList.add('active');
+  btn.classList.add('active');
+  window.scrollTo(0, 0);
+  if (!_built[id]) {
+    _built[id] = true;
+    var fn = { ad: buildAD, cm: buildCM, team: buildTeam, campus: buildCampus, source: buildSource, financial: buildFinancial };
+    if (fn[id]) fn[id]();
+  }
+}
+function setEl(id, h) { document.getElementById(id).innerHTML = h; }
+
+// ── CHART HELPERS ─────────────────────────────────────────────
+function hBar(data, labels, colors, w, h) {
+  var pl=130,pr=10,pt=8,pb=8,cw=w-pl-pr,ch=h-pt-pb,n=data.length,mx=Math.max.apply(null,data.concat([1]));
+  var bh=Math.min(20,(ch/n)-4),gap=ch/n;
+  var s='<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:'+h+'px" xmlns="http://www.w3.org/2000/svg">';
+  for(var g=0;g<=4;g++){var x=pl+(g/4)*cw;s+='<line x1="'+x.toFixed(1)+'" y1="'+pt+'" x2="'+x.toFixed(1)+'" y2="'+(pt+ch)+'" stroke="#F3F4F6" stroke-width="1"/>';}
+  for(var i=0;i<data.length;i++){
+    var v=data[i],y=pt+i*gap+(gap-bh)/2,bw=(v/mx)*cw,c=Array.isArray(colors)?colors[i%colors.length]:colors;
+    s+='<rect x="'+pl+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+bh+'" rx="3" fill="'+c+'"/>';
+    s+='<text x="'+(pl-6)+'" y="'+(y+bh/2+4).toFixed(1)+'" text-anchor="end" font-size="11" font-family="Inter,sans-serif" fill="#6B7280">'+(labels[i]||'').substring(0,18)+'</text>';
+    if(v>0)s+='<text x="'+(pl+bw+4).toFixed(1)+'" y="'+(y+bh/2+4).toFixed(1)+'" font-size="11" font-family="Inter,sans-serif" fill="#374151" font-weight="600">'+v+'</text>';
+  }
+  return s+'</svg>';
+}
+
+function vBar(groups, series, colors, w, h) {
+  var pl=40,pr=10,pt=20,pb=40,cw=w-pl-pr,ch=h-pt-pb,n=groups.length,ns=series.length;
+  var allV=[]; for(var si=0;si<ns;si++) for(var vi=0;vi<series[si].length;vi++) allV.push(series[si][vi]);
+  var mx=Math.max.apply(null,allV.concat([1]));
+  var grpW=cw/n,bw=Math.min(18,grpW/(ns+1));
+  var s='<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:'+h+'px" xmlns="http://www.w3.org/2000/svg">';
+  for(var g=0;g<=4;g++){var y=pt+(1-g/4)*ch;s+='<line x1="'+pl+'" y1="'+y.toFixed(1)+'" x2="'+(pl+cw)+'" y2="'+y.toFixed(1)+'" stroke="#F3F4F6" stroke-width="1"/><text x="'+(pl-4)+'" y="'+(y+4).toFixed(1)+'" text-anchor="end" font-size="9" fill="#9CA3AF">'+Math.round(mx*g/4)+'</text>';}
+  for(var i=0;i<groups.length;i++){
+    var gx=pl+i*grpW;
+    for(var j=0;j<ns;j++){
+      var v=series[j][i]||0,bh=(v/mx)*ch,x=gx+(grpW-ns*bw)/2+j*bw,y2=pt+ch-bh,c=Array.isArray(colors)?colors[j]:colors;
+      s+='<rect x="'+x.toFixed(1)+'" y="'+y2.toFixed(1)+'" width="'+(bw-1).toFixed(1)+'" height="'+bh.toFixed(1)+'" rx="2" fill="'+c+'"/>';
+      if(v>0)s+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(y2-2).toFixed(1)+'" text-anchor="middle" font-size="9" fill="#374151">'+v+'</text>';
+    }
+    s+='<text x="'+(gx+grpW/2).toFixed(1)+'" y="'+(pt+ch+13).toFixed(1)+'" text-anchor="middle" font-size="11" font-family="Inter,sans-serif" fill="#6B7280">'+String(groups[i]).substring(0,4)+'</text>';
+  }
+  return s+'</svg>';
+}
+
+function donut(data, labels, colors, size) {
+  var cx=size/2,cy=size/2,r=size/2-12,ir=size/4;
+  var tot=data.reduce(function(a,b){return a+b;},0)||1;
+  var s='<svg viewBox="0 0 '+size+' '+size+'" style="width:'+size+'px;height:'+size+'px" xmlns="http://www.w3.org/2000/svg">',ang=-Math.PI/2;
+  for(var i=0;i<data.length;i++){
+    var v=data[i],sw=2*Math.PI*(v/tot),x1=cx+r*Math.cos(ang),y1=cy+r*Math.sin(ang),x2=cx+r*Math.cos(ang+sw),y2=cy+r*Math.sin(ang+sw),ix1=cx+ir*Math.cos(ang),iy1=cy+ir*Math.sin(ang),ix2=cx+ir*Math.cos(ang+sw),iy2=cy+ir*Math.sin(ang+sw),lf=sw>Math.PI?1:0,c=Array.isArray(colors)?colors[i]:colors;
+    s+='<path d="M'+ix1.toFixed(1)+','+iy1.toFixed(1)+' L'+x1.toFixed(1)+','+y1.toFixed(1)+' A'+r+','+r+' 0 '+lf+',1 '+x2.toFixed(1)+','+y2.toFixed(1)+' L'+ix2.toFixed(1)+','+iy2.toFixed(1)+' A'+ir+','+ir+' 0 '+lf+',0 '+ix1.toFixed(1)+','+iy1.toFixed(1)+'" fill="'+c+'"/>';
+    ang+=sw;
+  }
+  s+='<text x="'+cx+'" y="'+(cy+5)+'" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">'+tot+'</text>';
+  return s+'</svg>';
+}
+
+function miniBar(obj, color, max_items) {
+  max_items = max_items || 7;
+  var entries = Object.entries(obj||{}).sort(function(a,b){return b[1]-a[1];}).slice(0, max_items);
+  var mx = entries[0] ? entries[0][1] : 1;
+  return entries.map(function(e) {
+    return '<div class="mb"><span class="mbl" title="'+e[0]+'">'+e[0].replace(/^.* - /,'').substring(0,22)+'</span><div class="mbt"><div class="mbf" style="width:'+Math.round(e[1]/mx*100)+'%;background:'+color+'"></div></div><span class="mbv">'+e[1]+'</span></div>';
+  }).join('');
+}
+
+function sr(l, v) { return '<div class="srow"><span class="slbl">'+l+'</span><span class="sval">'+v+'</span></div>'; }
+function kpi(c, l, v, s) { return '<div class="kpi '+c+'"><div class="kl">'+l+'</div><div class="kv">'+v+'</div><div class="ks">'+s+'</div></div>'; }
+function hmCls(v) { return v===0?'style="background:#F3F4F6;color:#9CA3AF"':v<=10?'style="background:#DBEAFE;color:#1E40AF"':v<=25?'style="background:#BFDBFE;color:#1E3A8A"':v<=50?'style="background:#93C5FD;color:#1E3A8A"':v<=80?'style="background:#3B82F6;color:#fff"':'style="background:#1D4ED8;color:#fff"'; }
+function nsClr(v) { return v>=75?'#DC2626':v>=50?'#D97706':'#059669'; }
+function nsBg(v) { return v>=75?'#FEF2F2':v>=50?'#FFFBEB':'#ECFDF5'; }
+function fmtR(v) { return v>0?'₹'+(v/100000).toFixed(1)+'L':'—'; }
+
+// ── OVERVIEW ─────────────────────────────────────────────────
+function buildOverview() {
+  var K = D.kpis, h = '';
+  h += '<div class="pg-hd"><div class="pg-title">Overview</div><div class="pg-sub">Live from Google Sheets · ' + (D.totalRows||0) + ' records · Updated: ' + (D.lastUpdated||'—') + '</div></div>';
+  h += '<div class="k6">';
+  h += kpi('cb','Walk-in Schedules',K.scheduled.toLocaleString('en-IN'),'total FLD records');
+  h += kpi('cg','Walk-ins Verified',K.walkins.toLocaleString('en-IN'),'actually came');
+  h += kpi('cr','No-shows',K.noShows.toLocaleString('en-IN'),K.noShowPct+'% of scheduled');
+  h += kpi('ca','Admissions',K.admissions.toLocaleString('en-IN'),K.convPct+'% conv from walk-in');
+  h += kpi('cp','Revenue Collected','₹'+(K.totalCollected/100000).toFixed(1)+'L','₹'+(K.totalFeePayable/10000000).toFixed(1)+'Cr fee payable');
+  h += kpi('ct','ADs / CMs / Campuses',K.uniqueADs,K.uniqueCMs+' CMs · '+K.campuses+' campuses');
+  h += '</div>';
+
+  var ml=D.monthly.map(function(m){return m.month;}),
+      ms=D.monthly.map(function(m){return m.scheduled;}),
+      mw=D.monthly.map(function(m){return m.walkins;}),
+      ma=D.monthly.map(function(m){return m.admissions;});
+
+  h += '<div class="g2">';
+  h += '<div class="card"><div class="ch"><span class="ct">Monthly funnel</span><div style="display:flex;gap:8px;font-size:10px;color:#6B7280"><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#93C5FD;margin-right:3px"></span>Sched</span><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#6EE7B7;margin-right:3px"></span>Walk-ins</span><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#FCD34D;margin-right:3px"></span>Adm</span></div></div>';
+  h += '<div style="height:220px">'+vBar(ml,[ms,mw,ma],['#93C5FD','#6EE7B7','#FCD34D'],520,220)+'</div></div>';
+  h += '<div class="card"><div class="ch"><span class="ct">Walk-in slot distribution</span></div>';
+  h += '<div style="height:180px">'+hBar(D.slotData.map(function(s){return s.walkins;}),D.slotData.map(function(s){return s.slot;}),['#2563EB','#059669','#D97706','#7C3AED'],380,180)+'</div></div>';
+  h += '</div>';
+
+  var wks=['Week 1','Week 2','Week 3','Week 4','Week 5'];
+  var hmHtml='<table class="hm"><tr><th></th>'+wks.map(function(w){return '<th>'+w+'</th>';}).join('')+'</tr>';
+  (D.teamHeatmap||[]).forEach(function(t) {
+    hmHtml += '<tr><td>'+t.team+'</td>'+wks.map(function(w){var v=t.weeks?t.weeks[w]||0:0;return '<td '+hmCls(v)+'>'+v+'</td>';}).join('')+'</tr>';
+  });
+  hmHtml += '</table>';
+
+  h += '<div class="g2"><div class="card"><div class="ch"><span class="ct">Team × week heatmap</span></div>'+hmHtml+'</div>';
+  h += '<div class="card"><div class="ch"><span class="ct">Key insights</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  var rcas=[
+    ['crit',K.noShowPct+'% no-show',K.noShows+' of '+K.scheduled+' scheduled leads never arrived.'],
+    ['crit','Only '+K.convPct+'% walk-in → admission',K.walkins+' walked in; only '+K.admissions+' paid.'],
+    ['warn','Revenue gap','₹'+(K.totalFeePayable/10000000).toFixed(1)+'Cr payable vs ₹'+(K.totalCollected/100000).toFixed(1)+'L collected.'],
+    ['good',K.uniqueADs+' active ADs',K.uniqueCMs+' CMs across '+K.campuses+' campuses.']
+  ];
+  rcas.forEach(function(r){h+='<div class="ri '+r[0]+'"><div class="rit">'+r[1]+'</div><div class="rib">'+r[2]+'</div></div>';});
+  h += '</div></div></div>';
+  setEl('content-overview', h);
+}
+
+// ── AD DEEP-DIVE ─────────────────────────────────────────────
+function buildAD() {
+  var h = '<div class="pg-hd"><div class="pg-title">AD Deep-Dive</div><div class="pg-sub">'+(D.adList||[]).length+' ADs · click row to expand</div></div>';
+  var top = (D.adList||[]).slice(0,15);
+  h += '<div class="g2"><div class="card"><div class="ch"><span class="ct">Top 15 by walk-ins</span></div>';
+  h += '<div style="height:'+(Math.max(top.length*28+60,200))+'px">'+hBar(top.map(function(a){return a.walkins;}),top.map(function(a){return a.name.substring(0,18);}),['#2563EB'],520,Math.max(top.length*28+60,200))+'</div></div>';
+  var ns=(D.adList||[]).filter(function(a){return a.noshow_pct>0;}).sort(function(a,b){return b.noshow_pct-a.noshow_pct;}).slice(0,12);
+  h += '<div class="card"><div class="ch"><span class="ct">Highest no-show %</span></div>';
+  h += '<div style="height:'+(Math.max(ns.length*28+60,200))+'px">'+hBar(ns.map(function(a){return a.noshow_pct;}),ns.map(function(a){return a.name.substring(0,14)+' ('+a.noshow_pct+'%)';}),ns.map(function(a){return nsClr(a.noshow_pct);}),520,Math.max(ns.length*28+60,200))+'</div></div></div>';
+
+  h += '<div class="card"><div class="ch"><span class="ct">Complete AD scorecard</span><div style="display:flex;gap:8px;flex-wrap:wrap">';
+  h += '<input class="sbox" id="ad-s" placeholder="Search AD…" oninput="filterAD()" style="width:150px">';
+  h += '<select class="sbox" id="ad-t" onchange="filterAD()"><option value="">All teams</option>';
+  var teams = [...new Set((D.adList||[]).map(function(a){return a.team;}).filter(Boolean))].sort();
+  teams.forEach(function(t){h+='<option>'+t+'</option>';});
+  h += '</select><select class="sbox" id="ad-o" onchange="filterAD()"><option value="walkins">Sort: Walk-ins</option><option value="noshow_pct">Sort: No-show%</option><option value="admissions">Sort: Admissions</option><option value="conv_pct">Sort: Conv%</option><option value="revenue">Sort: Revenue</option></select>';
+  h += '</div></div><div class="tscroll"><table class="dt"><thead><tr><th>#</th><th>AD Name</th><th>Team</th><th class="num">Walk-ins</th><th class="num">Sched</th><th class="num">NS%</th><th class="num">Admissions</th><th class="num">Conv%</th><th class="num">Revenue</th><th class="num">Apr</th><th class="num">May</th><th class="num">Jun</th></tr></thead><tbody id="ad-tbody"></tbody></table></div></div>';
+  setEl('content-ad', h);
+  filterAD();
+}
+
+function filterAD() {
+  var q = ((document.getElementById('ad-s')||{}).value||'').toLowerCase();
+  var t = ((document.getElementById('ad-t')||{}).value||'');
+  var srt = ((document.getElementById('ad-o')||{}).value||'walkins');
+  var rows = (D.adList||[]).filter(function(a){return(!q||a.name.toLowerCase().indexOf(q)>=0)&&(!t||a.team===t);});
+  rows.sort(function(a,b){return (b[srt]||0)-(a[srt]||0);});
+  var tb = document.getElementById('ad-tbody'); if (!tb) return; tb.innerHTML='';
+  rows.forEach(function(a,i) {
+    var rev = fmtR(a.revenue);
+    var row = document.createElement('tr'); row.className='cr';
+    row.innerHTML='<td>'+(i+1)+'</td><td style="font-weight:600;min-width:120px">'+a.name+'</td><td><span class="bt">'+(a.team||'—')+'</span></td><td class="num" style="font-weight:600">'+a.walkins+'</td><td class="num" style="color:#6B7280">'+(a.scheduled||'—')+'</td><td class="num"><span style="background:'+nsBg(a.noshow_pct)+';color:'+nsClr(a.noshow_pct)+';font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px">'+a.noshow_pct+'%</span></td><td class="num">'+a.admissions+'</td><td class="num" style="color:'+(a.conv_pct>=30?'#059669':a.conv_pct>=15?'#D97706':'#DC2626')+';font-weight:600">'+a.conv_pct+'%</td><td class="num">'+rev+'</td><td class="num">'+a.adm_apr+'</td><td class="num">'+a.adm_may+'</td><td class="num">'+a.adm_jun+'</td>';
+    row.addEventListener('click', function(){toggleADRow(row, a);});
+    tb.appendChild(row);
+  });
+}
+
+function toggleADRow(row, a) {
+  var next = row.nextElementSibling;
+  if (next && next.classList.contains('drill-row')) { next.style.display = next.style.display==='none'?'table-row':'none'; return; }
+  var tr = document.createElement('tr'); tr.className='drill-row';
+  tr.innerHTML='<td colspan="12" style="padding:0;border-bottom:1px solid #E5E7EB"><div class="drill-box"><div class="dk4"><div class="dk"><div class="dkv">'+a.walkins+'</div><div class="dkl">Walk-ins</div></div><div class="dk"><div class="dkv" style="color:#059669">'+a.admissions+'</div><div class="dkl">Admissions</div></div><div class="dk"><div class="dkv" style="color:'+nsClr(a.noshow_pct)+'">'+a.noshow_pct+'%</div><div class="dkl">No-show</div></div><div class="dk"><div class="dkv" style="color:#7C3AED">'+fmtR(a.revenue)+'</div><div class="dkl">Revenue</div></div></div><div class="dg3"><div class="dsec"><div class="dsect">Metrics</div>'+sr('Scheduled',a.scheduled)+sr('No-shows',a.noshow||0)+sr('Conv %',a.conv_pct+'%')+sr('Fee payable',fmtR(a.fee_payable))+sr('Avg disc',a.avg_disc+'%')+'</div><div class="dsec"><div class="dsect">Monthly Adm</div>'+sr('April',a.adm_apr)+sr('May',a.adm_may)+sr('June',a.adm_jun)+'</div><div class="dsec"><div class="dsect">Lead Info</div>'+sr('Top slot',(a.top_slot||'—'))+sr('Top source',(a.top_source||'—').substring(0,20))+sr('Top campus',(a.top_campus||'—').substring(0,20))+sr('Campuses',a.campuses)+'</div></div></div></td>';
+  row.parentNode.insertBefore(tr, row.nextSibling);
+}
+
+// ── CM ───────────────────────────────────────────────────────
+function buildCM() {
+  var top = (D.cmList||[]).slice(0,15);
+  var rv = (D.cmList||[]).filter(function(c){return c.revenue>0;}).sort(function(a,b){return b.revenue-a.revenue;}).slice(0,12);
+  var h = '<div class="pg-hd"><div class="pg-title">CM Deep-Dive</div><div class="pg-sub">'+(D.cmList||[]).length+' CMs</div></div>';
+  h += '<div class="g2"><div class="card"><div class="ch"><span class="ct">Top CMs by walk-ins</span></div><div style="height:'+(Math.max(top.length*28+60,200))+'px">'+hBar(top.map(function(c){return c.walkins;}),top.map(function(c){return c.name.substring(0,20);}),['#059669'],520,Math.max(top.length*28+60,200))+'</div></div>';
+  h += '<div class="card"><div class="ch"><span class="ct">CM revenue</span></div><div style="height:'+(Math.max(rv.length*28+60,200))+'px">'+hBar(rv.map(function(c){return c.revenue;}),rv.map(function(c){return c.name.substring(0,20);}),['#7C3AED'],520,Math.max(rv.length*28+60,200))+'</div></div></div>';
+  h += '<div class="card"><div class="ch"><span class="ct">CM scorecard</span><input class="sbox" id="cm-s" placeholder="Search CM…" oninput="filterCM()" style="width:180px"></div><div class="tscroll"><table class="dt"><thead><tr><th>#</th><th>CM Name</th><th>Team</th><th class="num">Walk-ins</th><th class="num">Admissions</th><th class="num">Conv%</th><th class="num">Revenue</th><th class="num">Apr</th><th class="num">May</th><th class="num">Jun</th></tr></thead><tbody id="cm-tbody"></tbody></table></div></div>';
+  setEl('content-cm', h); filterCM();
+}
+
+function filterCM() {
+  var q = ((document.getElementById('cm-s')||{}).value||'').toLowerCase();
+  var rows = (D.cmList||[]).filter(function(c){return !q||c.name.toLowerCase().indexOf(q)>=0;});
+  var tb = document.getElementById('cm-tbody'); if (!tb) return; tb.innerHTML='';
+  rows.forEach(function(c,i) {
+    var row = document.createElement('tr'); row.className='cr';
+    row.innerHTML='<td>'+(i+1)+'</td><td style="font-weight:600">'+c.name+'</td><td><span class="bt">'+(c.team||'—')+'</span></td><td class="num" style="font-weight:600">'+c.walkins+'</td><td class="num">'+c.admissions+'</td><td class="num" style="color:'+(c.conv>=30?'#059669':c.conv>=15?'#D97706':'#DC2626')+';font-weight:600">'+c.conv+'%</td><td class="num">'+fmtR(c.revenue)+'</td><td class="num">'+c.apr+'</td><td class="num">'+c.may+'</td><td class="num">'+c.jun+'</td>';
+    row.addEventListener('click', function(){
+      var next=row.nextElementSibling;
+      if(next&&next.classList.contains('drill-row')){next.style.display=next.style.display==='none'?'table-row':'none';return;}
+      var tr=document.createElement('tr');tr.className='drill-row';
+      tr.innerHTML='<td colspan="10" style="padding:0"><div class="drill-box"><div class="dk4"><div class="dk"><div class="dkv">'+c.walkins+'</div><div class="dkl">Walk-ins</div></div><div class="dk"><div class="dkv" style="color:#059669">'+c.admissions+'</div><div class="dkl">Admissions</div></div><div class="dk"><div class="dkv" style="color:#7C3AED">'+fmtR(c.revenue)+'</div><div class="dkl">Revenue</div></div><div class="dk"><div class="dkv" style="color:#D97706">'+c.conv+'%</div><div class="dkl">Conv %</div></div></div></div></td>';
+      row.parentNode.insertBefore(tr,row.nextSibling);
+    });
+    tb.appendChild(row);
+  });
+}
+
+// ── TEAMS ────────────────────────────────────────────────────
+var tclr={Closure:'#059669','Team Rohit':'#2563EB','Team Dilawar':'#7C3AED','Team Diwakar':'#0D9488','Team Ajay':'#D97706','Team Jyoti':'#DC2626','Team Badal':'#9CA3AF','Team Komal':'#374151'};
+function buildTeam() {
+  var td = D.teamsDetail||{};
+  var h = '<div class="pg-hd"><div class="pg-title">Team Deep-Dive</div></div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:14px">';
+  Object.entries(td).forEach(function(entry) {
+    var name=entry[0],t=entry[1],c=tclr[name]||'#6B7280';
+    var ns=t.noshow_pct||0,nsc=ns>=75?'#DC2626':ns>=50?'#D97706':'#059669';
+    var safe=name.replace(/\s/g,'_').replace(/\//g,'');
+    h+='<div class="team-card" style="border-top:3px solid '+c+'" onclick="toggleTeam(\''+safe+'\')"><div style="font-weight:700;color:'+c+';margin-bottom:8px">'+name+'</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:8px"><div><div style="font-size:18px;font-weight:700;color:'+c+'">'+t.walkins+'</div><div style="font-size:9px;color:#9CA3AF">Walk-ins</div></div><div><div style="font-size:18px;font-weight:700;color:'+c+'">'+t.admissions+'</div><div style="font-size:9px;color:#9CA3AF">Adm</div></div><div><div style="font-size:18px;font-weight:700;color:'+nsc+'">'+ns+'%</div><div style="font-size:9px;color:#9CA3AF">NS%</div></div></div>';
+    h+=sr('Scheduled',t.scheduled)+sr('Conv%',t.walkins>0?Math.round(t.admissions/t.walkins*100)+'%':'—');
+    h+='<div id="td-'+safe+'" style="display:none;border-top:1px solid #E5E7EB;padding-top:8px;margin-top:8px"><div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:4px">WEEKLY</div>'+miniBar(t.weekly||{},c)+'</div></div>';
+  });
+  h += '</div>';
+  var tNames=Object.keys(td),tNS=tNames.map(function(t){return td[t].noshow_pct||0;}),tWI=tNames.map(function(t){return td[t].walkins||0;});
+  h += '<div class="g2"><div class="card"><div class="ch"><span class="ct">No-show % by team</span></div><div style="height:220px">'+hBar(tNS,tNames,tNS.map(function(v){return nsClr(v);}),520,220)+'</div></div>';
+  h += '<div class="card"><div class="ch"><span class="ct">Walk-ins by team</span></div><div style="height:220px">'+hBar(tWI,tNames,['#2563EB'],520,220)+'</div></div></div>';
+  setEl('content-team', h);
+}
+function toggleTeam(safe){var d=document.getElementById('td-'+safe);if(d)d.style.display=d.style.display==='none'?'block':'none';}
+
+// ── CAMPUS ───────────────────────────────────────────────────
+function buildCampus() {
+  var camps = D.campuses||[];
+  var h = '<div class="pg-hd"><div class="pg-title">Campus Deep-Dive</div><div class="pg-sub">'+camps.length+' campuses</div></div>';
+  h += '<div class="g2"><div class="card"><div class="ch"><span class="ct">Walk-ins by campus</span></div><div style="height:'+(Math.max(camps.length*26+60,200))+'px">'+hBar(camps.map(function(c){return c.walkins;}),camps.map(function(c){return c.campus;}),['#2563EB'],520,Math.max(camps.length*26+60,200))+'</div></div>';
+  var rv=camps.filter(function(c){return c.revenue>0;});
+  h += '<div class="card"><div class="ch"><span class="ct">Campus revenue</span></div><div style="height:'+(Math.max(rv.length*26+60,200))+'px">'+hBar(rv.map(function(c){return c.revenue;}),rv.map(function(c){return c.campus;}),['#059669'],520,Math.max(rv.length*26+60,200))+'</div></div></div>';
+  h += '<div class="card"><div class="ch"><span class="ct">Campus table — click to drill</span></div><div class="tscroll"><table class="dt"><thead><tr><th>#</th><th>Campus</th><th class="num">Walk-ins</th><th class="num">Admissions</th><th class="num">Revenue</th></tr></thead><tbody id="camp-tbody"></tbody></table></div></div>';
+  setEl('content-campus', h);
+  var tb = document.getElementById('camp-tbody');
+  camps.forEach(function(c,i) {
+    var row=document.createElement('tr'); row.className='cr';
+    row.innerHTML='<td>'+(i+1)+'</td><td style="font-weight:600;font-size:12px">'+c.full+'</td><td class="num">'+c.walkins+'</td><td class="num">'+c.admissions+'</td><td class="num">'+fmtR(c.revenue)+'</td>';
+    row.addEventListener('click', function(){
+      var next=row.nextElementSibling;
+      if(next&&next.classList.contains('drill-row')){next.style.display=next.style.display==='none'?'table-row':'none';return;}
+      var tr=document.createElement('tr');tr.className='drill-row';
+      tr.innerHTML='<td colspan="5" style="padding:0"><div class="drill-box"><div style="font-weight:700;color:#2563EB;margin-bottom:10px">'+c.full+'</div><div class="g3"><div class="dsec"><div class="dsect">Top ADs</div>'+miniBar(c.top_ads||{},'#2563EB')+'</div><div class="dsec"><div class="dsect">Top Sources</div>'+miniBar(c.top_sources||{},'#D97706')+'</div><div></div></div></div></td>';
+      row.parentNode.insertBefore(tr,row.nextSibling);
+    });
+    tb.appendChild(row);
+  });
+}
+
+// ── SOURCES ──────────────────────────────────────────────────
+function buildSource() {
+  var srcs = D.sources||[];
+  var mx = Math.max.apply(null, srcs.map(function(s){return s.walkins;}).concat([1]));
+  var h = '<div class="pg-hd"><div class="pg-title">Lead Sources</div><div class="pg-sub">'+srcs.length+' sources · click to expand</div></div>';
+  h += '<div class="g2"><div class="card"><div class="ch"><span class="ct">Source volume</span></div>';
+  srcs.forEach(function(s) {
+    h += '<div class="src-bar" onclick="toggleSrcDetail(this)"><span class="src-lbl">'+s.source+'</span><div class="src-track"><div class="src-fill" style="width:'+Math.round(s.walkins/mx*100)+'%"></div></div><span class="src-cnt">'+s.walkins+'</span></div>';
+    h += '<div class="src-detail" style="display:none;padding:8px 0 4px 0;background:var(--blue-lt,#EFF6FF);border-radius:8px;margin-bottom:2px">'+sr('Walk-ins',s.walkins)+sr('Admissions',s.admissions)+sr('Conv %',s.conv_pct+'%')+sr('Revenue',fmtR(s.revenue))+'</div>';
+  });
+  h += '</div>';
+  h += '<div class="card"><div class="ch"><span class="ct">Source chart</span></div><div style="height:'+(Math.max(srcs.length*26+60,200))+'px">'+hBar(srcs.map(function(s){return s.walkins;}),srcs.map(function(s){return s.source.substring(0,20);}),['#0D9488'],400,Math.max(srcs.length*26+60,200))+'</div></div></div>';
+  setEl('content-source', h);
+}
+function toggleSrcDetail(bar){var d=bar.nextElementSibling;if(d)d.style.display=d.style.display==='none'?'block':'none';}
+
+// ── FINANCIALS ────────────────────────────────────────────────
+function buildFinancial() {
+  var K = D.kpis, fp = D.feePlan||[];
+  var h = '<div class="pg-hd"><div class="pg-title">Financials</div></div>';
+  h += '<div class="k6">'+kpi('cb','Total fee payable','₹'+(K.totalFeePayable/10000000).toFixed(1)+'Cr','₹'+K.totalFeePayable.toLocaleString('en-IN'))+kpi('cg','Collected','₹'+(K.totalCollected/100000).toFixed(1)+'L','₹'+K.totalCollected.toLocaleString('en-IN'))+kpi('cr','Gap','₹'+((K.totalFeePayable-K.totalCollected)/10000000).toFixed(1)+'Cr','pending')+kpi('ca','Avg fee','₹'+Math.round(K.avgFeePayable/1000)+'K','per student')+kpi('cp','Admissions',K.admissions,K.convPct+'% conv')+kpi('ct','Walk-ins',K.walkins,'from '+K.scheduled+' scheduled')+'</div>';
+  var fpC=['#2563EB','#059669','#D97706','#7C3AED'];
+  h += '<div class="g2"><div class="card"><div class="ch"><span class="ct">Fee plan distribution</span></div><div style="display:flex;align-items:center;gap:20px">'+donut(fp.map(function(p){return p.count;}),fp.map(function(p){return p.plan;}),fpC,160)+'<div>'+fp.map(function(p,i){return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="width:12px;height:12px;border-radius:3px;background:'+fpC[i]+';display:inline-block"></span><span style="font-size:12px">'+p.plan+': <b>'+p.count+'</b> · '+fmtR(p.revenue)+'</span></div>';}).join('')+'</div></div></div>';
+  var rA=(D.adList||[]).filter(function(a){return a.revenue>0;}).sort(function(a,b){return b.revenue-a.revenue;}).slice(0,12);
+  h += '<div class="card"><div class="ch"><span class="ct">Top ADs by revenue</span></div><div style="height:'+(Math.max(rA.length*26+60,200))+'px">'+hBar(rA.map(function(a){return a.revenue;}),rA.map(function(a){return a.name.substring(0,20);}),['#7C3AED'],520,Math.max(rA.length*26+60,200))+'</div></div></div>';
+  var rC=(D.campuses||[]).filter(function(c){return c.revenue>0;}).slice(0,10);
+  h += '<div class="card"><div class="ch"><span class="ct">Revenue by campus</span></div><div style="height:'+(Math.max(rC.length*26+60,200))+'px">'+hBar(rC.map(function(c){return c.revenue;}),rC.map(function(c){return c.campus.substring(0,20);}),['#059669'],520,Math.max(rC.length*26+60,200))+'</div></div>';
+  setEl('content-financial', h);
+}
+
+// ── START ──────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
